@@ -125,8 +125,8 @@ $(document).ready(function () {
             </span>
             <span class="dropdown-item" id="sortByLikesCmd">
                 <i class="menuIcon fa fa-fw mx-2"></i>
-                <i class="menuIcon fa fa-user mx-2"></i>
-                Photos les plus aiméés
+                <i class="menuIcon fa fa-heart mx-2"></i>
+                Photos les plus aimées
             </span>
             <span class="dropdown-item" id="ownerOnlyCmd">
                 <i class="menuIcon fa fa-fw mx-2"></i>
@@ -198,18 +198,6 @@ $(document).ready(function () {
             renderAbout();
         });
 
-    }
-
-    // Liste des photos
-    async function renderPhotos() {
-        let currentUser = API.retrieveLoggedUser();
-        if (currentUser != null) {
-            timeout();
-        }
-        eraseContent();
-        updateHeader("Liste des photos", "Photos");
-
-        restoreContentScrollPosition();
     }
 
     // Option Admin
@@ -310,8 +298,8 @@ $(document).ready(function () {
                     Fait à partir du code de base fourni par Nicolas Chourot
                 </p>
                 <p>
-                    PFI Jérémy Racine 2023 PARTIE 1 :
-                    <a href="https://github.com/NAGZYY/API-Server-2.00-PARTIE1">
+                    PFI Jérémy Racine 2023 PARTIE 2 :
+                    <a href="https://github.com/NAGZYY/API-Server-2.00-PARTIE2">
                         Github
                     </a>
                 </p>
@@ -643,6 +631,7 @@ $(document).ready(function () {
 
         $('#editProfilForm').on("submit", function (event) {
             let profil = getFormData($('#editProfilForm'));
+            console.log(profil);
             delete profil.matchedPassword;
             delete profil.matchedEmail;
             event.preventDefault();
@@ -730,12 +719,14 @@ $(document).ready(function () {
             </div>
             <hr>
             <div class="form">
-                <button class="form-control btn-primary" id="loginCmd">Essayez de vous reconnectern</button>
+                <button class="form-control btn-primary" id="loginCmd">Essayez de vous reconnecter</button>
             </div>
         </div>
         `));
         $('#loginCmd').on("click", async function () {
-            renderLogin();
+            API.logout().then(() => {
+                renderLogin();
+            });
         });
     }
 
@@ -769,79 +760,151 @@ $(document).ready(function () {
                 </div>
             </div>
             <div class="UserCommandPanel">` + adminAccessButton + userBlockButton +
-                `<span class="deleteCmd goldenrodCmd fas fa-user-slash" deleteContactId="${account.Id}" title="Effacer ${account.Name}"></span>
+            `<span class="deleteCmd goldenrodCmd fas fa-user-slash" deleteContactId="${account.Id}" title="Effacer ${account.Name}"></span>
             </div>
         </div>
     </div>
     `);
     }
+    // =--------------------------------- PARTIE 2 ---------------------------------=
+    // Liste des photos
+    async function renderPhotos() {
+        console.log("RENDER ALL PHOTOS");
+
+        eraseContent();
+        updateHeader("Liste des photos", "Photos");
+
+        let currentUser = API.retrieveLoggedUser();
+        if (currentUser != null) {
+            timeout();
+        }
+
+        if (!currentUser) {
+            renderLoginForm();
+        }
+
+        restoreContentScrollPosition();
+
+        let allPhotos = await API.GetPhotos();
+
+        let photoRow = '';
+
+        if (API.error) {
+            renderError();
+        } else {
+            allPhotos["data"].forEach(photo => {
+                if (photo["Shared"] || photo.OwnerId == currentUser.Id) {
+                    var dateUnixMilliseconds = photo.Date * 1000;
+                    var date = new Date(dateUnixMilliseconds);
+
+                    var joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                    var moisAnnée = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+                    var jour = joursSemaine[date.getDay()];
+                    var jourMois = date.getDate();
+                    var mois = moisAnnée[date.getMonth()];
+                    var annee = date.getFullYear();
+                    var heures = date.getHours();
+                    var minutes = date.getMinutes();
+                    var secondes = date.getSeconds();
+
+                    photoRow = `
+                    <div class="photoLayout">
+                            <div class="photoTitleContainer">
+                                <span class="photoTitle">${photo.Title}</span>
+                            </div>
+                            <img src="${photo["Image"]}" class="photoImage" alt="Photo">
+                            <div style="display:flex">
+                            <span class="photoCreationDate">${jour + ' le ' + jourMois + ' ' + mois + ' ' + annee + ' @ ' + heures + ':' + minutes + ':' + secondes}</span>
+                            <span class="photoCreationDate likesSummary">${photo.Likes}<i class="far fa-thumbs-up"></i></span>
+                            </div>
+                        </span>
+                        </div>        
+                    `;
+                    $("#content").append(photoRow);
+                }
+                console.log(photo["Image"]);
+                console.log(photo.Title);
+            });
+        }
+    }
+
     // Ajouter une photo
     function renderAddPhoto() {
         noTimeout();
         eraseContent();
-        UpdateHeader("Ajout de photos", "addPic");
+        updateHeader("Ajout de photos", "addPhoto");
+
+        let loggedUser = API.retrieveLoggedUser();
 
         $("#newPhotoCmd").hide();
 
         $("#content").append(`
             <br/>
-            <form class="form" id="uploadNewPicForm"'>
-                
-                
+            <form class="form" id="newPhotoForm"'>
+                <input type="hidden" name="Likes" id="Likes" value="0"/>
+                <input type="hidden" name="OwnerId" id="OwnerId" value="${loggedUser.Id}"/>
+                <input type="hidden" name="Date" id="Date" value="${Math.floor(new Date().getTime() / 1000)}">
                 <fieldset>
                     <legend>Informations</legend>
                     <input  type="text" 
                             class="form-control Alpha" 
-                            name="Name" 
-                            id="Name"
+                            name="Title" 
+                            id="Title"
                             placeholder="Titre" 
                             required 
                             RequireMessage = 'Veuillez entrer un titre'
                             InvalidMessage = 'Titre invalide'/>
 
-                    
-                            <textarea
-                            class="form-control Alpha"
-                            name="Description"
-                            id="Description"
-                            placeholder="Description"
-                        ></textarea>
+                    <textarea
+                        class="form-control Alpha"
+                        name="Description"
+                        id="Description"
+                        placeholder="Description"
+                    ></textarea>
 
-                    <input  type="checkbox"   
-                            name="Share" 
-                            id="Share" />
+                    <input type="checkbox" name="Shared" id="Shared" />
 
-                    <label for="Share">Partagée</label>
+                    <label for="Shared">Partagée</label>
 
                 </fieldset>
                 <fieldset>
                     <legend>Image</legend>
                     <div class='imageUploader' 
-                            newImage='true' 
-                            controlId='Image' 
-                            imageSrc='images/PhotoCloudLogo.png' 
-                            waitingImage="images/Loading_icon.gif">
+                        newImage='true' 
+                        controlId='Image' 
+                        imageSrc='images/PhotoCloudLogo.png' 
+                        waitingImage="images/Loading_icon.gif">
                 </div>
                 </fieldset>
     
                 <input type='submit' name='submit' id='saveUser' value="Enregistrer" class="form-control btn-primary">
             </form>
             <div class="cancel">
-                <button class="form-control btn-secondary" id="abortCreateProfilCmd">Annuler</button>
+                <button class="form-control btn-secondary" id="abortCmd">Annuler</button>
             </div>
         `);
-        //$('#loginCmd').on('click', renderLoginForm);
-        initFormValidation(); // important do to after all html injection!
+        initFormValidation();
         initImageUploaders();
-        $('#abortCreateProfilCmd').on('click', renderPhotos);
-        //addConflictValidation(API.checkConflictURL(), 'Email', 'saveUser');
-        $('#uploadNewPicForm').on("submit", function (event) {
-            let photo = getFormData($('#uploadNewPicForm'));
-            //delete profil.matchedPassword;
-            //delete profil.matchedEmail;
+
+        $('#abortCmd').on("click", async function () { // Annuler -> Liste de photos
+            renderPhotos();
+        });
+
+        $('#newPhotoForm').on("submit", function (event) {
+            let photo = getFormData($('#newPhotoForm'));
+            photo['Shared'] = $('#Shared').is(':checked');
+            photo['Likes'] = parseInt(photo['Likes']);
+            photo['Date'] = parseInt(photo['Date'], 10);
+            console.log(photo);
             event.preventDefault();
             showWaitingGif();
-            API.CreatePhoto(photo);
+            API.CreatePhoto(photo).then(() => {
+                renderPhotos();
+            });
         });
     }
+    // NEXT TIME : Mettre 2 par 2, afficher avatar + partager par dessus l'image, Faire page détail (peut etre faire likes)
+    // Jeudi : Modification / suppression d'image pour nos images (admin = pouvoir modifier/supprimer) (supprimer usager = supprimer toutes ses photos)
+    // Vendredi : Vérifier que tout marche , dernier arrangement.
 });

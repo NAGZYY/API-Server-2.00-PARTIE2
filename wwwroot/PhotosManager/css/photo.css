@@ -23,7 +23,7 @@
     width: 355px;
     height: 265px;
     border-radius: 9px;
-    padding: 5px;
+    /*padding: 5px;*/
 }
 
 .photoTitleContainer {
@@ -32,6 +32,7 @@
     grid-template-columns: 308px 25px 25px;
     align-items: center;
     cursor:default;
+    margin-right: 10px
 }
 
 
@@ -39,6 +40,10 @@
     font-size: 18px;
     font-weight: bold;
     color:rgb(0, 87, 204);
+}
+
+.photoCreationDate {
+    margin-right: 10px
 }
 
 .photoDetailsOwner {
@@ -63,13 +68,15 @@
 }
 
 .photoCreationDate {
-    font-size: 0.8em !important;
+    font-size: 0.87em !important;
     color:dodgerblue;
     display:grid;
-    grid-template-columns: auto 95px;
     align-items: center;
 }
 .likesSummary {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display:grid;
     grid-template-columns: 60px 30px;
     align-items: center;
