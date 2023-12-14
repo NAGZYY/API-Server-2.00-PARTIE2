@@ -790,7 +790,7 @@ $(document).ready(function () {
             renderError();
         } else {
             allPhotos["data"].forEach(async photo => {
-                if (photo["Shared"] || photo.OwnerId == currentUser.Id) {
+                if (photo["Shared"] || photo.OwnerId == currentUser.Id || currentUser.Authorizations["readAccess"] == 2 || currentUser.Authorizations["writeAccess"] == 2) {
 
                     let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
 
