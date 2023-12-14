@@ -631,7 +631,6 @@ $(document).ready(function () {
 
         $('#editProfilForm').on("submit", function (event) {
             let profil = getFormData($('#editProfilForm'));
-            console.log(profil);
             delete profil.matchedPassword;
             delete profil.matchedEmail;
             event.preventDefault();
@@ -741,8 +740,6 @@ $(document).ready(function () {
             adminAccessButton = `<span class="addAdminCmd dodgerblueCmd fas fa-user-alt" editContactId="${account.Id}" title="Administrateur / retirer les droits administrateur"></span>`;
         }
 
-        console.log(account);
-        console.log(account.isBlocked);
         if (account.isBlocked) {
             userBlockButton = `<span class="removeBlockedCmd redCmd fa fa-ban" editContactId="${account.Id}" title="Usager bloqué / débloquer l’accès"></span>`;
         } else {
@@ -769,8 +766,6 @@ $(document).ready(function () {
     // =--------------------------------- PARTIE 2 ---------------------------------=
     // Liste des photos
     async function renderPhotos() {
-        console.log("RENDER ALL PHOTOS");
-
         eraseContent();
         updateHeader("Liste des photos", "Photos");
 
@@ -792,39 +787,59 @@ $(document).ready(function () {
         if (API.error) {
             renderError();
         } else {
-            allPhotos["data"].forEach(photo => {
+            allPhotos["data"].forEach(async photo => {
                 if (photo["Shared"] || photo.OwnerId == currentUser.Id) {
-                    var dateUnixMilliseconds = photo.Date * 1000;
-                    var date = new Date(dateUnixMilliseconds);
 
-                    var joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-                    var moisAnnée = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+                    let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
 
-                    var jour = joursSemaine[date.getDay()];
-                    var jourMois = date.getDate();
-                    var mois = moisAnnée[date.getMonth()];
-                    var annee = date.getFullYear();
-                    var heures = date.getHours();
-                    var minutes = date.getMinutes();
-                    var secondes = date.getSeconds();
+                    let dateUnixMilliseconds = photo.Date * 1000;
+                    let date = new Date(dateUnixMilliseconds);
+
+                    let joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                    let moisAnnée = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+                    let jour = joursSemaine[date.getDay()];
+                    let jourMois = date.getDate();
+                    let mois = moisAnnée[date.getMonth()];
+                    let annee = date.getFullYear();
+                    let heures = date.getHours();
+                    let minutes = date.getMinutes();
+                    let secondes = date.getSeconds();
 
                     photoRow = `
                     <div class="photoLayout">
-                            <div class="photoTitleContainer">
-                                <span class="photoTitle">${photo.Title}</span>
-                            </div>
-                            <img src="${photo["Image"]}" class="photoImage" alt="Photo">
-                            <div style="display:flex">
-                            <span class="photoCreationDate">${jour + ' le ' + jourMois + ' ' + mois + ' ' + annee + ' @ ' + heures + ':' + minutes + ':' + secondes}</span>
-                            <span class="photoCreationDate likesSummary">${photo.Likes}<i class="far fa-thumbs-up"></i></span>
-                            </div>
-                        </span>
-                        </div>        
-                    `;
+                        <div class="photoTitleContainer">
+                            <span class="photoTitle">${photo.Title}</span>`
+                    if (photo.OwnerId == currentUser.Id || currentUser.Authorizations["readAccess"] == 2 || currentUser.Authorizations["writeAccess"] == 2) {
+                        photoRow = photoRow + `<div class="cmdIcon2 fa fa-pencil" id="editPhotoCmd" value="${photo.Id}" title="Éditer la photo"></div>
+                                                       <div style="padding-left: 5px;" class="cmdIcon2 fa fa-trash" id="deletePhotoCmd" title="Supprimer la photo"></div>`
+                    }
+                    photoRow = photoRow +
+                        `</div>
+                        <div class="photoLayout">
+                        <img src="${photo["Image"]}" class="photoImage" alt="Photo">
+                        <div class="UserAvatarPhoto" userid="${photo.OwnerId}" style="background-image:url('${photoUser.Avatar}')" title="${photoUser.Name}"></div>`
+                    if (photo.Shared) {
+                        photoRow = photoRow + `<div class="sharedImage" style="background-image:url('./images/shared.png')" title="Partagée"></div>`
+                    }
+                    photoRow = photoRow + `
+                        </div>
+                        <div class="photoCreationDate" style="display:flex">
+                            <span>${jour + ' le ' + jourMois + ' ' + mois + ' ' + annee + ' @ ' + heures + ':' + minutes + ':' + secondes}</span>
+                            <span class="likesSummary">${photo.Likes}<i class="far fa-thumbs-up"></i></span>
+                        </div>
+                    </div>        
+                `;
                     $("#content").append(photoRow);
                 }
-                console.log(photo["Image"]);
-                console.log(photo.Title);
+                $('#editPhotoCmd').on("click", async function () { // Edit -> Liste de photos
+                    let photoId = $(this).attr('value');
+                    let photoToEdit = await API.GetPhotosById(photoId);
+                    renderEditPhoto(photoToEdit);
+                });
+                $('#deletePhotoCmd').on("click", async function () { // Edit -> Liste de photos
+                    renderDeletePhoto();
+                });
             });
         }
     }
@@ -896,13 +911,109 @@ $(document).ready(function () {
             photo['Shared'] = $('#Shared').is(':checked');
             photo['Likes'] = parseInt(photo['Likes']);
             photo['Date'] = parseInt(photo['Date'], 10);
-            console.log(photo);
+
             event.preventDefault();
             showWaitingGif();
             API.CreatePhoto(photo).then(() => {
                 renderPhotos();
             });
         });
+    }
+
+    // Ajouter une photo
+    function renderEditPhoto(photo) {
+        let loggedUser = API.retrieveLoggedUser();
+        if (loggedUser.Id == photo.OwnerId || currentUser.Authorizations["readAccess"] == 2 || currentUser.Authorizations["writeAccess"] == 2) {
+            noTimeout();
+            eraseContent();
+            updateHeader("Modification de photo", "editPhoto");
+
+            $("#newPhotoCmd").hide();
+
+            let editPhoto = `
+            <br/>
+            <form class="form" id="editPhotoForm"'>
+                <input type="hidden" name="Likes" id="Likes" value="${photo.Likes}"/>
+                <input type="hidden" name="OwnerId" id="OwnerId" value="${photo.OwnerId}"/>
+                <input type="hidden" name="Id" id="Id" value="${photo.Id}"/>
+                <input type="hidden" name="Date" id="Date" value="${Math.floor(new Date().getTime() / 1000)}">
+                <fieldset>
+                    <legend>Informations</legend>
+                    <input  type="text" 
+                            class="form-control Alpha" 
+                            name="Title" 
+                            id="Title"
+                            placeholder="Titre" 
+                            value="${photo.Title}"
+                            required 
+                            RequireMessage = 'Veuillez entrer un titre'
+                            InvalidMessage = 'Titre invalide'/>
+
+                    <textarea
+                        class="form-control Alpha"
+                        name="Description"
+                        id="Description"
+                        placeholder="Description"
+                    >${photo.Description}</textarea>
+
+                    <input type="checkbox" name="Shared" id="Shared"`
+                    if (photo.Shared) {
+                        editPhoto = editPhoto + `checked />`;
+                    } else {
+                        editPhoto = editPhoto + ` />`;
+                    }
+                    editPhoto = editPhoto + `
+                    <label for="Shared">Partagée</label>
+
+                </fieldset>
+                <fieldset>
+                    <legend>Image</legend>
+                    <div class='imageUploader' 
+                        newImage='true' 
+                        controlId='Image' 
+                        imageSrc='${photo.Image}'
+                        value='${photo.Image}'
+                        waitingImage="images/Loading_icon.gif">
+                </div>
+                </fieldset>
+    
+                <input type='submit' name='submit' id='saveUser' value="Enregistrer" class="form-control btn-primary">
+            </form>
+            <div class="cancel">
+                <button class="form-control btn-secondary" id="abortCmd">Annuler</button>
+            </div>
+        `
+
+            $("#content").append(editPhoto);
+            initFormValidation();
+            initImageUploaders();
+
+            $('#abortCmd').on("click", async function () { // Annuler -> Liste de photos
+                renderPhotos();
+            });
+
+            $('#editPhotoForm').on("submit", function (event) {
+                let photo = getFormData($('#editPhotoForm'));
+                photo['Shared'] = $('#Shared').is(':checked');
+                photo['Likes'] = parseInt(photo['Likes']);
+                photo['Date'] = parseInt(photo['Date'], 10);
+                console.log(photo['Image']);
+                if (photo['Image'] != undefined || photo['Image'] != null || photo['Image'] != "") {
+                    photo['Image'] = photo.Image;
+                }
+                console.log(photo);
+                event.preventDefault();
+                showWaitingGif();
+                //API.UpdatePhoto(photo["data"]).then(() => {
+                //    renderPhotos();
+                //});
+            });
+        }
+    }
+
+    // Ajouter une photo
+    function renderDeletePhoto() {
+        console.log("Delete");
     }
     // NEXT TIME : Mettre 2 par 2, afficher avatar + partager par dessus l'image, Faire page détail (peut etre faire likes)
     // Jeudi : Modification / suppression d'image pour nos images (admin = pouvoir modifier/supprimer) (supprimer usager = supprimer toutes ses photos)

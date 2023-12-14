@@ -85,6 +85,19 @@
     border-radius: 60px;
 }
 
+.UserAvatarPhoto {
+    position: absolute;
+    top: 0.3em;
+    left: 1em;
+    width: 50px;
+    height: 50px;
+    border-radius: 50px;
+    color:white;
+    border:2px solid white;
+    background-size: cover;
+    z-index: 1;
+}
+
 .UserAvatarSmall {
     background-size: cover;
     background-position: center;

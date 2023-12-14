@@ -12,13 +12,13 @@ export default class AccountsController extends Controller {
     }
     index(id) {
         if (id != undefined) {
-            if (Authorizations.readGranted(this.HttpContext, Authorizations.admin()))
+            //if (Authorizations.readGranted(this.HttpContext, Authorizations.admin()))
                 this.HttpContext.response.JSON(this.repository.get(id));
-            else
-                this.HttpContext.response.unAuthorized("Unauthorized access");
+            //else
+            //    this.HttpContext.response.unAuthorized("Unauthorized access");
         }
         else {
-            if (Authorizations.readGranted(this.HttpContext, Authorizations.admin()))
+            if (Authorizations.granted(this.HttpContext, Authorizations.admin()))
                 this.HttpContext.response.JSON(this.repository.getAll(this.HttpContext.path.params), this.repository.ETag, true, Authorizations.admin());
             else
                 this.HttpContext.response.unAuthorized("Unauthorized access");
@@ -31,10 +31,10 @@ export default class AccountsController extends Controller {
                 let user = this.repository.findByField("Email", loginInfo.Email);
                 if (user != null) {
                     if (user.Password == loginInfo.Password) {
-                        if (user.isBlocked){
+                        if (user.isBlocked) {
                             this.HttpContext.response.userBlocked("This user is blocked!");
 
-                        }else{
+                        } else {
                             user = this.repository.get(user.Id);
                             let newToken = TokenManager.create(user);
                             this.HttpContext.response.created(newToken);
@@ -144,12 +144,12 @@ export default class AccountsController extends Controller {
                 user.Created = utilities.nowInSeconds();
                 let foundedUser = this.repository.findByField("Id", user.Id);
                 if (foundedUser != null) {
-                    if (user.adminSender == null ){
-                        user.Authorizations = foundedUser.Authorizations;                            
+                    if (user.adminSender == null) {
+                        user.Authorizations = foundedUser.Authorizations;
                         user.isBlocked = foundedUser.isBlocked;
                     } else {
                         let foundedAdminSender = this.repository.findByField("Id", user.adminSender);
-                        if (foundedAdminSender.Authorizations["readAccess"] != 2 || foundedAdminSender.Authorizations["writeAccess"] != 2 ){
+                        if (foundedAdminSender.Authorizations["readAccess"] != 2 || foundedAdminSender.Authorizations["writeAccess"] != 2) {
                             user.Authorizations = foundedUser.Authorizations;
                             user.isBlocked = foundedUser.isBlocked;
                         }
