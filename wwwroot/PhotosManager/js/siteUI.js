@@ -434,6 +434,8 @@ $(document).ready(function () {
         noTimeout();
         eraseContent(); // effacer le conteneur #content 
 
+        restoreContentScrollPosition();
+
         updateHeader("Inscription", "createAccount");
 
         $("#newPhotoCmd").hide();
@@ -512,11 +514,11 @@ $(document).ready(function () {
         initFormValidation();
         initImageUploaders();
 
-        $('#abortCmd').on("click", async function () { // Annuler -> Liste de photos
+        addConflictValidation(API.checkConflictURL(), 'Email', 'saveUser'); // Vérif 2 courriel
+
+        $('#abortCmd').on("click", async function () { // Annuler -> Login
             renderLogin();
         });
-
-        addConflictValidation(API.checkConflictURL(), 'Email', 'saveUser'); // Vérif 2 courriel
 
         $('#createProfilForm').on("submit", function (event) {
             let profil = getFormData($('#createProfilForm'));
@@ -631,6 +633,7 @@ $(document).ready(function () {
 
         $('#editProfilForm').on("submit", function (event) {
             let profil = getFormData($('#editProfilForm'));
+            console.log(profil);
             delete profil.matchedPassword;
             delete profil.matchedEmail;
             event.preventDefault();
@@ -772,11 +775,10 @@ $(document).ready(function () {
         let currentUser = API.retrieveLoggedUser();
         if (currentUser != null) {
             timeout();
+        } else {
+            return renderLogin();
         }
-
-        if (!currentUser) {
-            renderLoginForm();
-        }
+        console.log(currentUser);
 
         restoreContentScrollPosition();
 
@@ -792,8 +794,8 @@ $(document).ready(function () {
 
                     let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
 
-                    let dateUnixMilliseconds = photo.Date * 1000;
-                    let date = new Date(dateUnixMilliseconds);
+                    let dateUnix = photo.Date * 1000;
+                    let date = new Date(dateUnix);
 
                     let joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
                     let moisAnnée = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -807,12 +809,12 @@ $(document).ready(function () {
                     let secondes = date.getSeconds();
 
                     photoRow = `
-                    <div class="photoLayout">
+                    <div class="photoLayout" style="display: inline-block;">
                         <div class="photoTitleContainer">
                             <span class="photoTitle">${photo.Title}</span>`
                     if (photo.OwnerId == currentUser.Id || currentUser.Authorizations["readAccess"] == 2 || currentUser.Authorizations["writeAccess"] == 2) {
-                        photoRow = photoRow + `<div class="cmdIcon2 fa fa-pencil" id="editPhotoCmd" value="${photo.Id}" title="Éditer la photo"></div>
-                                                       <div style="padding-left: 5px;" class="cmdIcon2 fa fa-trash" id="deletePhotoCmd" title="Supprimer la photo"></div>`
+                        photoRow = photoRow + `<div class="cmdIcon2 fa fa-pencil editPhotoCmd" value="${photo.Id}" title="Éditer la photo"></div>
+                                                <div style="padding-left: 5px;" class="cmdIcon2 fa fa-trash deletePhotoCmd" value="${photo.Id}" title="Supprimer la photo"></div>`
                     }
                     photoRow = photoRow +
                         `</div>
@@ -832,13 +834,15 @@ $(document).ready(function () {
                 `;
                     $("#content").append(photoRow);
                 }
-                $('#editPhotoCmd').on("click", async function () { // Edit -> Liste de photos
+                $('.editPhotoCmd').on("click", async function () { // Modifier photo
                     let photoId = $(this).attr('value');
                     let photoToEdit = await API.GetPhotosById(photoId);
                     renderEditPhoto(photoToEdit);
                 });
-                $('#deletePhotoCmd').on("click", async function () { // Edit -> Liste de photos
-                    renderDeletePhoto();
+                $('.deletePhotoCmd').on("click", async function () { // Supprimer photo
+                    let photoId = $(this).attr('value');
+                    let photoToDelete = await API.GetPhotosById(photoId);
+                    renderDeletePhoto(photoToDelete);
                 });
             });
         }
@@ -920,10 +924,10 @@ $(document).ready(function () {
         });
     }
 
-    // Ajouter une photo
+    // Editer une photo
     function renderEditPhoto(photo) {
         let loggedUser = API.retrieveLoggedUser();
-        if (loggedUser.Id == photo.OwnerId || currentUser.Authorizations["readAccess"] == 2 || currentUser.Authorizations["writeAccess"] == 2) {
+        if (loggedUser.Id == photo.OwnerId || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
             noTimeout();
             eraseContent();
             updateHeader("Modification de photo", "editPhoto");
@@ -957,32 +961,31 @@ $(document).ready(function () {
                     >${photo.Description}</textarea>
 
                     <input type="checkbox" name="Shared" id="Shared"`
-                    if (photo.Shared) {
-                        editPhoto = editPhoto + `checked />`;
-                    } else {
-                        editPhoto = editPhoto + ` />`;
-                    }
-                    editPhoto = editPhoto + `
+            if (photo.Shared) {
+                editPhoto = editPhoto + `checked />`;
+            } else {
+                editPhoto = editPhoto + ` />`;
+            }
+            editPhoto = editPhoto + `
                     <label for="Shared">Partagée</label>
 
-                </fieldset>
-                <fieldset>
+                    </fieldset>
+                    <fieldset>
                     <legend>Image</legend>
-                    <div class='imageUploader' 
-                        newImage='true' 
-                        controlId='Image' 
+                    <div class='imageUploader'
+                        newImage='false'
+                        controlId='Image'
                         imageSrc='${photo.Image}'
-                        value='${photo.Image}'
                         waitingImage="images/Loading_icon.gif">
+                    </div>
+                    </fieldset>
+        
+                    <input type='submit' name='submit' id='saveImage' value="Enregistrer" class="form-control btn-primary">
+                </form>
+                <div class="cancel">
+                    <button class="form-control btn-secondary" id="abortCmd">Annuler</button>
                 </div>
-                </fieldset>
-    
-                <input type='submit' name='submit' id='saveUser' value="Enregistrer" class="form-control btn-primary">
-            </form>
-            <div class="cancel">
-                <button class="form-control btn-secondary" id="abortCmd">Annuler</button>
-            </div>
-        `
+                `
 
             $("#content").append(editPhoto);
             initFormValidation();
@@ -997,25 +1000,57 @@ $(document).ready(function () {
                 photo['Shared'] = $('#Shared').is(':checked');
                 photo['Likes'] = parseInt(photo['Likes']);
                 photo['Date'] = parseInt(photo['Date'], 10);
-                console.log(photo['Image']);
-                if (photo['Image'] != undefined || photo['Image'] != null || photo['Image'] != "") {
+
+                if (photo['Image'] == undefined || photo['Image'] == null || photo['Image'] == "") {
                     photo['Image'] = photo.Image;
                 }
                 console.log(photo);
                 event.preventDefault();
                 showWaitingGif();
-                //API.UpdatePhoto(photo["data"]).then(() => {
-                //    renderPhotos();
-                //});
+                API.UpdatePhoto(photo).then(() => {
+                    renderPhotos();
+                });
             });
         }
     }
 
-    // Ajouter une photo
-    function renderDeletePhoto() {
-        console.log("Delete");
+    // Supprimer une photo
+    function renderDeletePhoto(photo) {
+        let loggedUser = API.retrieveLoggedUser();
+        if (loggedUser.Id == photo.OwnerId || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
+            noTimeout();
+            eraseContent();
+            updateHeader("Retrait de photo", "deletePhoto");
+            $("#newPhotoCmd").hide();
+
+            $("#content").append(
+                $(`
+                <div class="content" style="text-align:center">
+                    <div class="form">
+                    <h3>Voulez-vous vraiment effacer cette photo?</h3>
+                </div>
+                <div class="UserLayout" style="margin: auto; width: fit-content;display:block">
+                    <span class="photoTitle">${photo.Title}</span>
+                    <div class="photoImage" style="background-image:url('${photo.Image}')"></div>
+                </div>
+                <div class="form">
+                <button class="form-control btn-danger" id="deleteCmd">Effacer</button>
+                </div>
+                <div class="cancel">
+                <button class="form-control btn-secondary" id="abortCmd">Annuler</button>
+                </div>
+                </div>
+            `));
+            $('#deleteCmd').on("click", async function () {
+                API.DeletePhoto(photo.Id);
+                renderPhotos();
+            });
+            $('#abortCmd').on("click", async function () { // Annuler -> liste des photos
+                renderPhotos();
+            });
+        }
     }
-    // NEXT TIME : Mettre 2 par 2, afficher avatar + partager par dessus l'image, Faire page détail (peut etre faire likes)
-    // Jeudi : Modification / suppression d'image pour nos images (admin = pouvoir modifier/supprimer) (supprimer usager = supprimer toutes ses photos)
-    // Vendredi : Vérifier que tout marche , dernier arrangement.
+    // NEXT TIME : afficher avatar + partager par dessus l'image, Modification / suppression d'image pour nos images (admin = pouvoir modifier/supprimer) (supprimer usager = supprimer toutes ses photos) 
+    // Jeudi : Mettre 2 par 2, Faire page détail et faire likes (Faire le trie?)
+    // Vendredi : Faire le trie, Vérifier que tout marche + dernier arrangement.
 });
