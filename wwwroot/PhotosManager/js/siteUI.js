@@ -3,6 +3,7 @@
 /// Views rendering
 $(document).ready(function () {
     let contentScrollPosition = 0;
+    let filtreSelectionné = "all";
 
     Init_UI();
 
@@ -202,9 +203,9 @@ $(document).ready(function () {
 
     // Option Admin
     async function renderManageUser() {
-        let currentUser = API.retrieveLoggedUser();
-        if (currentUser != null) {
-            if (currentUser.Authorizations["readAccess"] != 2 || currentUser.Authorizations["writeAccess"] != 2) {
+        let loggedUser = API.retrieveLoggedUser();
+        if (loggedUser != null) {
+            if (loggedUser.Authorizations["readAccess"] != 2 || loggedUser.Authorizations["writeAccess"] != 2) {
                 renderPhotos();
             }
         } else {
@@ -278,8 +279,8 @@ $(document).ready(function () {
 
     // À propos
     function renderAbout() {
-        let currentUser = API.retrieveLoggedUser();
-        if (currentUser != null) {
+        let loggedUser = API.retrieveLoggedUser();
+        if (loggedUser != null) {
             timeout();
         }
         eraseContent();
@@ -772,26 +773,25 @@ $(document).ready(function () {
         eraseContent();
         updateHeader("Liste des photos", "Photos");
 
-        let currentUser = API.retrieveLoggedUser();
-        if (currentUser != null) {
+        let loggedUser = API.retrieveLoggedUser();
+        if (loggedUser != null) {
             timeout();
         } else {
             return renderLogin();
         }
-        console.log(currentUser);
 
         restoreContentScrollPosition();
 
         let allPhotos = await API.GetPhotos();
 
-        let photoRow = '';
-
         if (API.error) {
             renderError();
         } else {
-            allPhotos["data"].forEach(async photo => {
-                if (photo["Shared"] || photo.OwnerId == currentUser.Id || currentUser.Authorizations["readAccess"] == 2 || currentUser.Authorizations["writeAccess"] == 2) {
+            // Crée une chaîne vide pour stocker le HTML des photos
+            let photoRows = '';
 
+            for (const photo of allPhotos["data"]) {
+                if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
                     let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
 
                     let dateUnix = photo.Date * 1000;
@@ -803,50 +803,74 @@ $(document).ready(function () {
                     let jour = joursSemaine[date.getDay()];
                     let jourMois = date.getDate();
                     let mois = moisAnnée[date.getMonth()];
-                    let annee = date.getFullYear();
+                    let année = date.getFullYear();
                     let heures = date.getHours();
                     let minutes = date.getMinutes();
                     let secondes = date.getSeconds();
 
-                    photoRow = `
-                    <div class="photoLayout" style="display: inline-block;">
-                        <div class="photoTitleContainer">
-                            <span class="photoTitle">${photo.Title}</span>`
-                    if (photo.OwnerId == currentUser.Id || currentUser.Authorizations["readAccess"] == 2 || currentUser.Authorizations["writeAccess"] == 2) {
-                        photoRow = photoRow + `<div class="cmdIcon2 fa fa-pencil editPhotoCmd" value="${photo.Id}" title="Éditer la photo"></div>
-                                                <div style="padding-left: 5px;" class="cmdIcon2 fa fa-trash deletePhotoCmd" value="${photo.Id}" title="Supprimer la photo"></div>`
+                    let isUserLiked = false;
+                    isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
+
+                    let likesSummary = "";
+
+                    
+                    if (photo.LikedUsers.length > 0) { // Si il y a des likes
+                        let likedUsers = await Promise.all(photo.LikedUsers.map(userId => API.GetAccountById(userId))); // Récupérer chaque user qui a liké
+                        let likedUsersList = likedUsers.map(user => user.data.Name).join('\n'); // Liste de chaque utilisateur avec saut à la ligne
+
+                        likesSummary = `<span class="likesSummary" title="${likedUsersList}">${photo.Likes}<i style="cursor: pointer" class="${isUserLiked ? 'fa-solid' : 'fa-regular'} fa-thumbs-up"></i></span>`;
+                    } else {
+                        likesSummary = `<span class="likesSummary">${photo.Likes}<i style="cursor: pointer" class="${isUserLiked ? 'fa-solid' : 'fa-regular'} fa-thumbs-up"></i></span>`;
                     }
-                    photoRow = photoRow +
-                        `</div>
-                        <div class="photoLayout">
-                        <img src="${photo["Image"]}" class="photoImage" alt="Photo">
-                        <div class="UserAvatarPhoto" userid="${photo.OwnerId}" style="background-image:url('${photoUser.Avatar}')" title="${photoUser.Name}"></div>`
+
+                    // Ajoute le HTML pour chaque photo à la chaîne photoRows
+                    photoRows += `
+                        <div class="photoLayout" style="display: inline-block;">
+                            <div class="photoTitleContainer">
+                                <span class="photoTitle detailsCmd" style="cursor: pointer" value="${photo.Id}">${photo.Title}</span>`;
+
+                    if (photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
+                        photoRows += `<div class="cmdIcon2 fa fa-pencil editPhotoCmd" value="${photo.Id}" title="Éditer la photo"></div>
+                                      <div style="padding-left: 5px;" class="cmdIcon2 fa fa-trash deletePhotoCmd" value="${photo.Id}" title="Supprimer la photo"></div>`;
+                    }
+
+                    photoRows += `</div>
+                            <div class="photoLayout detailsCmd" style="cursor: pointer" value="${photo.Id}">
+                                <img src="${photo["Image"]}" class="photoImage" alt="Photo">
+                                <div class="UserAvatarPhoto" userid="${photo.OwnerId}" style="background-image:url('${photoUser.Avatar}')" title="${photoUser.Name}"></div>`;
+
                     if (photo.Shared) {
-                        photoRow = photoRow + `<div class="sharedImage" style="background-image:url('./images/shared.png')" title="Partagée"></div>`
+                        photoRows += `<div class="sharedImage" style="background-image:url('./images/shared.png')" title="Partagée"></div>`;
                     }
-                    photoRow = photoRow + `
-                        </div>
-                        <div class="photoCreationDate" style="display:flex">
-                            <span>${jour + ' le ' + jourMois + ' ' + mois + ' ' + annee + ' @ ' + heures + ':' + minutes + ':' + secondes}</span>
-                            <span class="likesSummary">${photo.Likes}<i class="far fa-thumbs-up"></i></span>
-                        </div>
-                    </div>        
-                `;
-                    $("#content").append(photoRow);
+
+                    photoRows += `</div>
+                            <div class="photoCreationDate" style="display:flex">
+                                <span>${jour + ' le ' + jourMois + ' ' + mois + ' ' + année + ' @ ' + heures + ':' + minutes + ':' + secondes}</span>
+                                ${likesSummary}
+                            </div>
+                        </div>`;
                 }
-                $('.editPhotoCmd').on("click", async function () { // Modifier photo
-                    let photoId = $(this).attr('value');
-                    let photoToEdit = await API.GetPhotosById(photoId);
-                    renderEditPhoto(photoToEdit);
-                });
-                $('.deletePhotoCmd').on("click", async function () { // Supprimer photo
-                    let photoId = $(this).attr('value');
-                    let photoToDelete = await API.GetPhotosById(photoId);
-                    renderDeletePhoto(photoToDelete);
-                });
+            }
+            $("#content").append(photoRows);
+
+            $('.editPhotoCmd').on("click", async function () { // Modifier photo
+                let photoId = $(this).attr('value');
+                let photoToEdit = await API.GetPhotosById(photoId);
+                renderEditPhoto(photoToEdit);
+            });
+            $('.deletePhotoCmd').on("click", async function () { // Supprimer photo
+                let photoId = $(this).attr('value');
+                let photoToDelete = await API.GetPhotosById(photoId);
+                renderDeletePhoto(photoToDelete);
+            });
+            $('.detailsCmd').on("click", async function () { // Détails photo
+                let photoId = $(this).attr('value');
+                let photoToDetails = await API.GetPhotosById(photoId);
+                renderDetailsPhoto(photoToDetails);
             });
         }
     }
+
 
     // Ajouter une photo
     function renderAddPhoto() {
@@ -892,7 +916,8 @@ $(document).ready(function () {
                     <div class='imageUploader' 
                         newImage='true' 
                         controlId='Image' 
-                        imageSrc='images/PhotoCloudLogo.png' 
+                        imageSrc='images/PhotoCloudLogo.png'
+                        required 
                         waitingImage="images/Loading_icon.gif">
                 </div>
                 </fieldset>
@@ -915,6 +940,11 @@ $(document).ready(function () {
             photo['Shared'] = $('#Shared').is(':checked');
             photo['Likes'] = parseInt(photo['Likes']);
             photo['Date'] = parseInt(photo['Date'], 10);
+
+            photo.LikedUsers = [];
+            console.log(photo.LikedUsers);
+
+            console.log(photo);
 
             event.preventDefault();
             showWaitingGif();
@@ -1004,7 +1034,7 @@ $(document).ready(function () {
                 if (photo['Image'] == undefined || photo['Image'] == null || photo['Image'] == "") {
                     photo['Image'] = photo.Image;
                 }
-                console.log(photo);
+
                 event.preventDefault();
                 showWaitingGif();
                 API.UpdatePhoto(photo).then(() => {
@@ -1050,6 +1080,134 @@ $(document).ready(function () {
             });
         }
     }
+
+    // Détails photo
+    async function renderDetailsPhoto(photo) {
+        eraseContent();
+        updateHeader("Détails", "details");
+
+        let loggedUser = API.retrieveLoggedUser();
+        if (loggedUser != null) {
+            timeout();
+        } else {
+            return renderLogin();
+        }
+
+        restoreContentScrollPosition();
+
+        let photoRow = '';
+
+        if (API.error) {
+            renderError();
+        } else {
+            if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
+
+                let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
+
+                let dateUnix = photo.Date * 1000;
+                let date = new Date(dateUnix);
+
+                let joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                let moisAnnée = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+                let jour = joursSemaine[date.getDay()];
+                let jourMois = date.getDate();
+                let mois = moisAnnée[date.getMonth()];
+                let annee = date.getFullYear();
+                let heures = date.getHours();
+                let minutes = date.getMinutes();
+                let secondes = date.getSeconds();
+
+                let isUserLiked = false;
+                isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
+                let likesSummary = "";
+
+                if (photo.LikedUsers.length > 0) { // Si il y a des likes
+                    let likedUsers = await Promise.all(photo.LikedUsers.map(userId => API.GetAccountById(userId))); // Récupérer chaque user qui a liké
+                    let likedUsersList = likedUsers.map(user => user.data.Name).join('\n'); // Liste de chaque utilisateur avec saut à la ligne
+
+                    likesSummary = `<span class="likesSummary" title="${likedUsersList}">${photo.Likes}<i style="cursor: pointer" class="${isUserLiked ? 'fa-solid' : 'fa-regular'} fa-thumbs-up likeCmd"></i></span>`;
+                } else {
+                    likesSummary = `<span class="likesSummary">${photo.Likes}<i style="cursor: pointer" class="${isUserLiked ? 'fa-solid' : 'fa-regular'} fa-thumbs-up likeCmd"></i></span>`;
+                }
+
+                console.log(photo.LikedUsers);
+
+                photoRow = `
+                    <div class="photoLayout">
+                    <div style="display: flex">
+                        <div class="UserAvatarSmallDetails" userid="${photo.OwnerId}" style="background-image:url('${photoUser.Avatar}')" title="${photoUser.Name}"></div>
+                        <span style="color: black; font-weight: bold; text-align: center; display: inline-block; line-height: 4em;padding-left:0.3em"> ${photoUser.Name}</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <div class="photoTitleContainer">
+                            <span class="photoDetailsTitle">${photo.Title}</span>`
+                if (photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
+                    photoRow = photoRow + `<div class="cmdIcon2 fa fa-pencil editPhotoCmd" style="font-size:1.6em" value="${photo.Id}" title="Éditer la photo"></div>
+                                                <div style="padding-left: 5px; font-size: 1.6em" class="cmdIcon2 fa fa-trash deletePhotoCmd" value="${photo.Id}" title="Supprimer la photo"></div>`
+                }
+                photoRow = photoRow +
+                    `</div>
+                        <div class="photoLayout" style="display: flex; justify-content: center;">
+                                <img src="${photo["Image"]}" class="photoDetailsLargeImage" alt="Photo">
+                        </div>
+                        <div class="photoDetailsCreationDate" style="display:flex">
+                            <span>${jour + ' le ' + jourMois + ' ' + mois + ' ' + annee + ' @ ' + heures + ':' + minutes + ':' + secondes}</span>
+                            ${likesSummary}
+                        </div>
+                        <p class="photoDetailsDescription">${photo.Description}</p>
+                    </div>
+                    </div>
+                `;
+
+                $("#content").append(photoRow);
+            }
+            $('.editPhotoCmd').on("click", async function () { // Modifier photo
+                let photoId = $(this).attr('value');
+                let photoToEdit = await API.GetPhotosById(photoId);
+                renderEditPhoto(photoToEdit);
+            });
+            $('.deletePhotoCmd').on("click", async function () { // Supprimer photo
+                let photoId = $(this).attr('value');
+                let photoToDelete = await API.GetPhotosById(photoId);
+                renderDeletePhoto(photoToDelete);
+            });
+            $('.likeCmd').on("click", async function (event) { // Supprimer photo
+                if (loggedUser) {
+                    // Vérifiez si l'utilisateur a déjà aimé la photo
+                    const isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
+
+                    if (isUserLiked) { // Si l'utilisateur a déjà aimé
+                        photo.Likes--;
+                        const index = photo.LikedUsers.indexOf(loggedUser.Id);
+                        if (index !== -1) {
+                            photo.LikedUsers.splice(index, 1);
+                        }
+                    } else {// Si l'utilisateur n'a pas déjà aimé
+                        photo.Likes++;
+                        photo.LikedUsers.push(loggedUser.Id);
+                    }
+
+                    // Extraire le nom du fichier de l'URL
+                    const urlSegments = photo.Image.split('/');
+                    const urlImage = urlSegments[urlSegments.length - 1];
+                    let oldUrlImage = photo.Image;
+
+                    photo.Image = urlImage;
+
+                    event.preventDefault();
+                    showWaitingGif();
+
+                    API.UpdatePhoto(photo).then(() => {
+                        photo.Image = oldUrlImage;
+                        renderDetailsPhoto(photo);
+                    });
+                }
+            });
+        }
+    }
+
     // NEXT TIME : afficher avatar + partager par dessus l'image, Modification / suppression d'image pour nos images (admin = pouvoir modifier/supprimer) (supprimer usager = supprimer toutes ses photos) 
     // Jeudi : Mettre 2 par 2, Faire page détail et faire likes (Faire le trie?)
     // Vendredi : Faire le trie, Vérifier que tout marche + dernier arrangement.

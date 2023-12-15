@@ -107,9 +107,14 @@
     align-items: center;
 }
 .photoDetailsLargeImage {
-    width:100%;
     object-fit: cover;
     padding: 5px;
+    display:flex;
+    gap:5px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 80%;
 }
 
 
