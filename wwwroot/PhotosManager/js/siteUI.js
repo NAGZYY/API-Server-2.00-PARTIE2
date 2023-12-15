@@ -811,8 +811,9 @@ $(document).ready(function () {
             let photoRows = '';
             let nbrTours = 0;
 
-            for (let photo of allPhotos["data"]) {
-                if (filtreSelectionné == "owner") {
+
+            if (filtreSelectionné == "owner") {
+                for (let photo of allPhotos["data"]) {
                     if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
                         try {
                             nbrTours++;
@@ -849,7 +850,7 @@ $(document).ready(function () {
                                         let année = date.getFullYear();
                                         let heures = date.getHours().toString().padStart(2, '0');
                                         let minutes = date.getMinutes().toString().padStart(2, '0');
-                                        let secondes = date.getSeconds().toString().padStart(2, '0');                                        
+                                        let secondes = date.getSeconds().toString().padStart(2, '0');
 
                                         let isUserLiked = false;
                                         isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
@@ -913,9 +914,11 @@ $(document).ready(function () {
                             console.error("Erreur lors de la récupération des photos :", error);
                         }
                     }
-                } else if (filtreSelectionné == "likes") {
-                    allPhotos["data"].sort((a, b) => b.Likes - a.Likes);
-                    
+                }
+            } else if (filtreSelectionné == "likes") {
+                allPhotos["data"].sort((a, b) => b.Likes - a.Likes);
+                for (let photo of allPhotos["data"]) {
+
                     if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
                         console.log(photo);
                         let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
@@ -932,7 +935,7 @@ $(document).ready(function () {
                         let année = date.getFullYear();
                         let heures = date.getHours().toString().padStart(2, '0');
                         let minutes = date.getMinutes().toString().padStart(2, '0');
-                        let secondes = date.getSeconds().toString().padStart(2, '0');                        
+                        let secondes = date.getSeconds().toString().padStart(2, '0');
 
                         let isUserLiked = false;
                         isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
@@ -972,9 +975,12 @@ $(document).ready(function () {
                                     <span>${jour + ' le ' + jourMois + ' ' + mois + ' ' + année + ' @ ' + heures + ':' + minutes + ':' + secondes}</span>
                                     ${likesSummary}
                                 </div>
-                            </div>`;
+                        
+                                </div>`;
                     }
-                } else if (filtreSelectionné == "own") {
+                }
+            } else if (filtreSelectionné == "own") {
+                for (let photo of allPhotos["data"]) {
                     if (photo.OwnerId == loggedUser.Id) {
                         let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
 
@@ -990,7 +996,7 @@ $(document).ready(function () {
                         let année = date.getFullYear();
                         let heures = date.getHours().toString().padStart(2, '0');
                         let minutes = date.getMinutes().toString().padStart(2, '0');
-                        let secondes = date.getSeconds().toString().padStart(2, '0');                        
+                        let secondes = date.getSeconds().toString().padStart(2, '0');
 
                         let isUserLiked = false;
                         isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
@@ -1032,23 +1038,25 @@ $(document).ready(function () {
                                 </div>
                             </div>`;
                     }
-                } else {
-                    // par date
-                    allPhotos["data"].sort((photo1, photo2) => {
-                        const date1 = photo1.Date * 1000;
-                        const date2 = photo2.Date * 1000;
-                    
-                        if (date1 < date2) {
-                            return date2 - date1;  // Inverser l'ordre pour trier de la plus récente à la plus ancienne
-                        } else if (date1 > date2) {
-                            return date2 - date1;
-                        } else {
-                            // Si les dates sont égales, conserver l'ordre d'origine
-                            return 0;
-                        }
-                    });
+                }
+            } else {
+                // par date
+                allPhotos["data"].sort((photo1, photo2) => {
+                    const date1 = photo1.Date * 1000;
+                    const date2 = photo2.Date * 1000;
+
+                    if (date1 < date2) {
+                        return date2 - date1;  // Inverser l'ordre pour trier de la plus récente à la plus ancienne
+                    } else if (date1 > date2) {
+                        return date2 - date1;
+                    } else {
+                        // Si les dates sont égales, conserver l'ordre d'origine
+                        return 0;
+                    }
+                });
+                for (let photo of allPhotos["data"]) {
                     console.log(allPhotos);
-                    
+
 
                     if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
                         let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
@@ -1065,7 +1073,7 @@ $(document).ready(function () {
                         let année = date.getFullYear();
                         let heures = date.getHours().toString().padStart(2, '0');
                         let minutes = date.getMinutes().toString().padStart(2, '0');
-                        let secondes = date.getSeconds().toString().padStart(2, '0');                        
+                        let secondes = date.getSeconds().toString().padStart(2, '0');
 
                         let isUserLiked = false;
                         isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
