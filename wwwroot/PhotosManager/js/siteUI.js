@@ -787,6 +787,7 @@ $(document).ready(function () {
     </div>
     `);
     }
+
     // =--------------------------------- PARTIE 2 ---------------------------------=
     // Liste des photos
     async function renderPhotos() {
@@ -812,11 +813,11 @@ $(document).ready(function () {
             let nbrTours = 0;
 
 
-            if (filtreSelectionné == "owner") {
+            if (filtreSelectionné == "owner") { // Filtrer par créateur
                 for (let photo of allPhotos["data"]) {
                     if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
                         try {
-                            nbrTours++;
+                            nbrTours++; // Permet d'afficher les photos qu'une seule fois
 
                             let photosByOwner = {};
                             for (let photo of allPhotos["data"]) {
@@ -832,7 +833,7 @@ $(document).ready(function () {
 
                             for (let ownerId in photosByOwner) {
                                 let ownerPhotos = photosByOwner[ownerId];
-
+                                
                                 for (let i = 0; i < ownerPhotos.length; i++) {
                                     photo = ownerPhotos[i];
                                     if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
@@ -895,6 +896,7 @@ $(document).ready(function () {
                                 }
                             }
                             $("#content").append(photoRows);
+
                             $('.editPhotoCmd').on("click", async function () { // Modifier photo
                                 let photoId = $(this).attr('value');
                                 let photoToEdit = await API.GetPhotosById(photoId);
@@ -915,12 +917,11 @@ $(document).ready(function () {
                         }
                     }
                 }
-            } else if (filtreSelectionné == "likes") {
-                allPhotos["data"].sort((a, b) => b.Likes - a.Likes);
+            } else if (filtreSelectionné == "likes") { // Filtrer par likes (mentions j'aimes)
+                allPhotos["data"].sort((a, b) => b.Likes - a.Likes); // Sort par nombre de likes (mentions j'aimes)
                 for (let photo of allPhotos["data"]) {
 
                     if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
-                        console.log(photo);
                         let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
 
                         let dateUnix = photo.Date * 1000;
@@ -979,7 +980,7 @@ $(document).ready(function () {
                                 </div>`;
                     }
                 }
-            } else if (filtreSelectionné == "own") {
+            } else if (filtreSelectionné == "own") { // Filtrer par "mes photos"
                 for (let photo of allPhotos["data"]) {
                     if (photo.OwnerId == loggedUser.Id) {
                         let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
@@ -1039,14 +1040,13 @@ $(document).ready(function () {
                             </div>`;
                     }
                 }
-            } else {
-                // par date
-                allPhotos["data"].sort((photo1, photo2) => {
+            } else { // Filtrer par date
+                allPhotos["data"].sort((photo1, photo2) => { // Sort par date
                     const date1 = photo1.Date * 1000;
                     const date2 = photo2.Date * 1000;
 
                     if (date1 < date2) {
-                        return date2 - date1;  // Inverser l'ordre pour trier de la plus récente à la plus ancienne
+                        return date2 - date1;  // Trier de la plus récente à la plus ancienne
                     } else if (date1 > date2) {
                         return date2 - date1;
                     } else {
@@ -1055,9 +1055,6 @@ $(document).ready(function () {
                     }
                 });
                 for (let photo of allPhotos["data"]) {
-                    console.log(allPhotos);
-
-
                     if (photo["Shared"] || photo.OwnerId == loggedUser.Id || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
                         let photoUser = (await API.GetAccountById(photo.OwnerId)).data;
 
@@ -1137,7 +1134,7 @@ $(document).ready(function () {
         }
     }
 
-    // Ajouter une photoDD
+    // Ajouter une photo
     function renderAddPhoto() {
         noTimeout();
         eraseContent();
@@ -1200,17 +1197,17 @@ $(document).ready(function () {
             renderPhotos();
         });
 
-        $('#newPhotoForm').on("submit", function (event) {
+        $('#newPhotoForm').on("submit", function (event) { // Ajouter une photo avec tous ses informations
             let photo = getFormData($('#newPhotoForm'));
             photo['Shared'] = $('#Shared').is(':checked');
             photo['Likes'] = parseInt(photo['Likes']);
             photo['Date'] = parseInt(photo['Date'], 10);
-
             photo.LikedUsers = [];
 
             event.preventDefault();
             showWaitingGif();
-            API.CreatePhoto(photo).then(() => {
+
+            API.CreatePhoto(photo).then(() => { // Création de la photo
                 renderPhotos();
             });
         });
@@ -1287,19 +1284,16 @@ $(document).ready(function () {
                 renderPhotos();
             });
 
-            $('#editPhotoForm').on("submit", function (event) {
+            $('#editPhotoForm').on("submit", function (event) { // Modifier la photo avec ses nouvelles informations
                 let photo = getFormData($('#editPhotoForm'));
                 photo['Shared'] = $('#Shared').is(':checked');
                 photo['Likes'] = parseInt(photo['Likes']);
                 photo['Date'] = parseInt(photo['Date'], 10);
 
-                if (photo['Image'] == undefined || photo['Image'] == null || photo['Image'] == "") {
-                    photo['Image'] = photo.Image;
-                }
-
                 event.preventDefault();
                 showWaitingGif();
-                API.UpdatePhoto(photo).then(() => {
+
+                API.UpdatePhoto(photo).then(() => { // Modifier la photo avec le nouveau nombre de likes
                     renderPhotos();
                 });
             });
@@ -1333,7 +1327,7 @@ $(document).ready(function () {
                 </div>
                 </div>
             `));
-            $('#deleteCmd').on("click", async function () {
+            $('#deleteCmd').on("click", async function () { // Supprimer -> Liste des photos
                 API.DeletePhoto(photo.Id);
                 renderPhotos();
             });
@@ -1434,7 +1428,7 @@ $(document).ready(function () {
                 let photoToDelete = await API.GetPhotosById(photoId);
                 renderDeletePhoto(photoToDelete);
             });
-            $('.likeCmd').on("click", async function (event) { // Supprimer photo
+            $('.likeCmd').on("click", async function (event) { // Mettre une mention j'aime
                 if (loggedUser) {
                     // Vérifiez si l'utilisateur a déjà aimé la photo
                     const isUserLiked = photo.LikedUsers.includes(loggedUser.Id);
@@ -1460,7 +1454,7 @@ $(document).ready(function () {
                     event.preventDefault();
                     showWaitingGif();
 
-                    API.UpdatePhoto(photo).then(() => {
+                    API.UpdatePhoto(photo).then(() => { // Modifier la photo avec le nouveau nombre de likes
                         photo.Image = oldUrlImage;
                         renderDetailsPhoto(photo);
                     });
@@ -1468,8 +1462,4 @@ $(document).ready(function () {
             });
         }
     }
-
-    // NEXT TIME : 
-    // Jeudi : Mettre 2 par 2, Faire page détail et faire likes (Faire le trie?)
-    // Vendredi : Faire le trie, Vérifier que tout marche + dernier arrangement.
 });
