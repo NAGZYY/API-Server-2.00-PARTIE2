@@ -1484,5 +1484,5 @@ $(document).ready(function () {
         }
     }
 
-    setInterval(partialRefresh, 2000); // Appelé à tout les 2 secondes
+    setInterval(partialRefresh, 500); // Appelé à tout les 500 millisecondes
 });
