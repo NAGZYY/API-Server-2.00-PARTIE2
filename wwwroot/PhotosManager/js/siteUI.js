@@ -1474,11 +1474,9 @@ $(document).ready(function () {
             });
         }
     }
-    async function partialRefresh() {
+    async function partialRefresh() { // Rafraichissement partiel
         result = await API.GetPhotosETag();
         if (result) {
-            console.log("CURRENT ETAG: " + currentETag);
-            console.log("RESULT: " + result);
             if (currentETag != result) {
                 renderPhotos();
                 currentETag = result;
@@ -1486,5 +1484,5 @@ $(document).ready(function () {
         }
     }
 
-    setInterval(partialRefresh, 2000);
+    setInterval(partialRefresh, 2000); // Appelé à tout les 2 secondes
 });
