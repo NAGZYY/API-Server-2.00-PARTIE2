@@ -5,6 +5,7 @@ $(document).ready(function () {
     let contentScrollPosition = 0;
     let currentETag = "";
     let filtreSelectionné = "date";
+    let onListPhotos = "false";
 
     Init_UI();
 
@@ -802,6 +803,8 @@ $(document).ready(function () {
             return renderLogin();
         }
 
+        onListPhotos = true;
+
         restoreContentScrollPosition();
 
         let allPhotos = await API.GetPhotos();
@@ -1144,6 +1147,8 @@ $(document).ready(function () {
 
         let loggedUser = API.retrieveLoggedUser();
 
+        onListPhotos = false;
+
         $("#newPhotoCmd").hide();
 
         $("#content").append(`
@@ -1223,6 +1228,8 @@ $(document).ready(function () {
             noTimeout();
             eraseContent();
             updateHeader("Modification de photo", "editPhoto");
+
+            onListPhotos = false;
 
             $("#newPhotoCmd").hide();
 
@@ -1362,6 +1369,8 @@ $(document).ready(function () {
             return renderLogin();
         }
 
+        onListPhotos = false;
+
         restoreContentScrollPosition();
 
         let photoRow = '';
@@ -1478,7 +1487,9 @@ $(document).ready(function () {
         result = await API.GetPhotosETag();
         if (result) {
             if (currentETag != result) {
-                renderPhotos();
+                if (onListPhotos) {
+                    renderPhotos();
+                }
                 currentETag = result;
             }
         }

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////// API photos_APIs call ///////////////////////////////////////////////////////
 
-const serverHost = "https://hypnotic-chatter-sulfur.glitch.me/";
-//const serverHost = "http://localhost:5000";
+//const serverHost = "https://hypnotic-chatter-sulfur.glitch.me/";
+const serverHost = "http://localhost:5000";
 const photos_API = "/api/photos";
 //const photoLikes_API = "/api/photolikes";
 
