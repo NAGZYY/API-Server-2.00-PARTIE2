@@ -3,6 +3,7 @@
 /// Views rendering
 $(document).ready(function () {
     let contentScrollPosition = 0;
+    let currentETag = "";
     let filtreSelectionné = "date";
 
     Init_UI();
@@ -1114,6 +1115,7 @@ $(document).ready(function () {
                     }
                 }
             }
+
             $("#content").append(photoRows);
 
             $('.editPhotoCmd').on("click", async function () { // Modifier photo
@@ -1215,6 +1217,7 @@ $(document).ready(function () {
 
     // Editer une photo
     function renderEditPhoto(photo) {
+        let result;
         let loggedUser = API.retrieveLoggedUser();
         if (loggedUser.Id == photo.OwnerId || loggedUser.Authorizations["readAccess"] == 2 || loggedUser.Authorizations["writeAccess"] == 2) {
             noTimeout();
@@ -1275,6 +1278,14 @@ $(document).ready(function () {
                     <button class="form-control btn-secondary" id="abortCmd">Annuler</button>
                 </div>
                 `
+                /*esult = API.UpdatePhoto(photo);
+                if (result === null) {
+                    currentETag = result.ETag;
+                    renderPhotos();
+                }
+                else {
+                    
+                }*/
 
             $("#content").append(editPhoto);
             initFormValidation();
@@ -1293,6 +1304,7 @@ $(document).ready(function () {
                 event.preventDefault();
                 showWaitingGif();
 
+                result = 
                 API.UpdatePhoto(photo).then(() => { // Modifier la photo avec le nouveau nombre de likes
                     renderPhotos();
                 });
@@ -1462,4 +1474,17 @@ $(document).ready(function () {
             });
         }
     }
+    async function partialRefresh() {
+        result = await API.GetPhotosETag();
+        if (result) {
+            console.log("CURRENT ETAG: " + currentETag);
+            console.log("RESULT: " + result);
+            if (currentETag != result) {
+                renderPhotos();
+                currentETag = result;
+            }
+        }
+    }
+
+    setInterval(partialRefresh, 2000);
 });
